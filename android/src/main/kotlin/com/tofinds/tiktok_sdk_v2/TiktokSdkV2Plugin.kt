@@ -77,7 +77,7 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
           state = state,
           codeVerifier = codeVerifier,
         )
-        val authType = if (browserAuthEnabled == false && isTikTokInstalled()) {
+        val authType = if (browserAuthEnabled == false) {
           AuthApi.AuthMethod.TikTokApp
         } else {
           AuthApi.AuthMethod.ChromeTab // Fallback to browser
@@ -120,15 +120,6 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
     activity = null
     activityPluginBinding = null
   }
-
-  private fun isTikTokInstalled(): Boolean {
-    return try {
-        activity?.packageManager?.getPackageInfo("com.zhiliaoapp.musically", 0)
-        true
-    } catch (e: Exception) {
-        false
-    }
-  } 
 
   override fun onNewIntent(intent: Intent): Boolean {
     authApi.getAuthResponseFromIntent(intent, redirectUrl = redirectUrl)?.let {
