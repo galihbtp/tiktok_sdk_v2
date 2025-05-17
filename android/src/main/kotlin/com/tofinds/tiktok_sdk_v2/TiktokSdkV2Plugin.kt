@@ -56,10 +56,16 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
         result.success(null)
       }
       "login" -> {
+        // 1. Validate clientKey
+        if (clientKey == null) {
+          result.error("INVALID_CLIENT_KEY", "Call setup() first.", null)
+          return
+        }
+
         val scope = call.argument<String>("scope")
         val state = call.argument<String>("state")
         redirectUrl = call.argument<String>("redirectUri") ?: ""
-        var browserAuthEnabled = call.argument<Boolean>("browserAuthEnabled")
+        var browserAuthEnabled = call.argument<Boolean>("browserAuthEnabled") ?: true
 
 
         codeVerifier = PKCEUtils.generateCodeVerifier()
@@ -71,12 +77,11 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
           state = state,
           codeVerifier = codeVerifier,
         )
-//        val authType = if (browserAuthEnabled == true) {
-//          AuthApi.AuthMethod.ChromeTab
-//        } else {
-//          AuthApi.AuthMethod.TikTokApp
-//        }
-        var authType = AuthApi.AuthMethod.ChromeTab
+        val authType = if (browserAuthEnabled == false && isTikTokInstalled()) {
+          AuthApi.AuthMethod.TikTokApp
+        } else {
+          AuthApi.AuthMethod.ChromeTab // Fallback to browser
+        }
         authApi.authorize(request, authType)
         loginResult = result
       }
@@ -116,6 +121,15 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
     activityPluginBinding = null
   }
 
+  private fun isTikTokInstalled(): Boolean {
+    return try {
+        activity?.packageManager?.getPackageInfo("com.zhiliaoapp.musically", 0)
+        true
+    } catch (e: Exception) {
+        false
+    }
+  } 
+
   override fun onNewIntent(intent: Intent): Boolean {
     authApi.getAuthResponseFromIntent(intent, redirectUrl = redirectUrl)?.let {
       val authCode = it.authCode
@@ -130,8 +144,8 @@ class TiktokSdkV2Plugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugin
       } else {
         // Returns an error if authentication fails
         loginResult?.error(
-          it.errorCode.toString(),
-          it.errorMsg,
+          it.errorCode?.toString() ?: "UNKNOWN_ERROR",  // Handle null errorCode
+          it.errorMsg ?: "Authentication failed",       // Handle null errorMsg
           null,
         )
       }
